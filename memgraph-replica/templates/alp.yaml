@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+  labels:
+    app: alp
+  name: alp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alp
+  template:
+    metadata:
+      labels:
+        app: alp
+    spec:
+      containers:
+      - image: alpine:latest
+        name: alpine
+        command:
+        - /bin/sleep
+        - "999999"

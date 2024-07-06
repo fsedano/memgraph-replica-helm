@@ -1,0 +1,9 @@
+apiVersion: v2
+name: memgraph-replica
+description: Memgraph with replica setup
+
+type: application
+
+version: 0.1.0
+
+appVersion: "2.18.0"

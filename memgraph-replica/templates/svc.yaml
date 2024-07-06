@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: memgraph-db-main
+  name: memgraph-main
+spec:
+  ports:
+  - port: 7687
+    protocol: TCP
+    targetPort: 7687
+  selector:
+    app: memgraph-db-main
+  type: ClusterIP
+  clusterIP: None
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: memgraph-db-replica-1
+  name: memgraph-replica-1
+spec:
+  ports:
+  - port: 7687
+    protocol: TCP
+    targetPort: 7687
+    name: data
+  - port: 10000
+    name: replica
+    protocol: TCP
+    targetPort: 10000
+  selector:
+    app: memgraph-db-replica-1
+  type: ClusterIP
+  clusterIP: None
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: memgraph-db-replica-2
+  name: memgraph-replica-2
+spec:
+  ports:
+  - port: 7687
+    protocol: TCP
+    targetPort: 7687
+    name: data
+  - port: 10000
+    protocol: TCP
+    targetPort: 10000
+    name: replica
+  selector:
+    app: memgraph-db-replica-2
+  type: ClusterIP
+  clusterIP: None

@@ -1,0 +1,137 @@
+# templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: memgraph-replica-1
+spec:
+  selector:
+    matchLabels:
+      app: memgraph-db-replica-1
+  serviceName: "memgraph-replica-1"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: memgraph-db-replica-1
+    spec:
+      initContainers:
+        - name: init-volume-mounts
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          volumeMounts:
+            - name: memgraph-replica-1-lib-storage
+              mountPath: /var/lib/memgraph
+            - name: memgraph-replica-1-log-storage
+              mountPath: /var/log/memgraph
+          command: ["/bin/sh", "-c"]
+          args:
+            - >
+              chown -R memgraph:memgraph /var/lib/memgraph;
+              chown -R memgraph:memgraph /var/log/memgraph;
+          securityContext:
+            privileged: true
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["all"]
+              add: ["CHOWN"]
+            runAsUser: 0
+            runAsNonRoot: false
+      volumes:
+        - name: memgraph-replica-1-lib-storage
+          persistentVolumeClaim:
+            claimName: memgraph-replica-1-lib-storage
+        - name: memgraph-replica-1-log-storage
+          persistentVolumeClaim:
+            claimName: memgraph-replica-1-log-storage
+      containers:
+        - name: set-replica-1
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command:
+          - "/bin/bash"
+          - "-c"
+          - | 
+            ls
+            while true
+            do
+              echo 'SET REPLICATION ROLE TO REPLICA WITH PORT 10000;' | mgconsole --host localhost --port 7687  -username test -password test
+              echo 'SHOW REPLICATION ROLE;' | mgconsole --host localhost --port 7687  -username test -password test
+              sleep 5
+            done
+        - name: memgraph
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          args:
+          {{- range .Values.memgraphConfig }}
+          - {{ . | quote }}
+          {{- end }}
+          ports:
+            - name: bolt
+              containerPort: 7687
+            - name: websocket
+              containerPort: 7444
+            - name: http
+              containerPort: 9091
+          livenessProbe:
+            exec:
+              command:
+              - sh
+              - -c
+              - echo 'RETURN 0;' | mgconsole --host localhost --port 7687  -username test -password test
+            initialDelaySeconds: {{ .Values.container.probes.liveliness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.container.probes.liveliness.periodSeconds }}
+            failureThreshold: {{ .Values.container.probes.liveliness.failureThreshold }}
+          readinessProbe:
+            exec:
+              command:
+              - sh
+              - -c
+              - echo 'RETURN 0;' | mgconsole --host localhost --port 7687  -username test -password test
+            initialDelaySeconds: {{ .Values.container.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.container.probes.readiness.periodSeconds }}
+            failureThreshold: {{ .Values.container.probes.readiness.failureThreshold }}
+          startupProbe:
+            exec:
+              command:
+              - sh
+              - -c
+              - echo 'RETURN 0;' | mgconsole --host localhost --port 7687  -username test -password test
+            failureThreshold: {{ .Values.container.probes.startup.failureThreshold }}
+            periodSeconds: {{ .Values.container.probes.startup.periodSeconds }}
+            initialDelaySeconds: {{ .Values.container.probes.startup.initialDelaySeconds }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+           {{ if .Values.memgraphUser }}
+            - name: MEMGRAPH_USER
+              value: {{ .Values.memgraphUser }}
+            - name: MEMGRAPH_PASSWORD
+              value: {{ .Values.memgraphPassword }}
+           {{- end }}
+          volumeMounts:
+            - name: memgraph-replica-1-lib-storage
+              mountPath: /var/lib/memgraph
+            - name: memgraph-replica-1-lib-storage
+              mountPath: /var/log/memgraph
+  volumeClaimTemplates:
+    - metadata:
+        name: memgraph-replica-1-lib-storage
+      spec:
+        accessModes:
+        - "ReadWriteOnce"
+        {{- if .Values.persistentVolumeClaim.storageClassName }}
+        storageClassName: {{ .Values.persistentVolumeClaim.storageClassName }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistentVolumeClaim.storageSize }}
+    - metadata:
+        name: memgraph-replica-1-log-storage
+      spec:
+        accessModes:
+        - "ReadWriteOnce"
+        {{- if .Values.persistentVolumeClaim.logStorageClassName }}
+        storageClassName: {{ .Values.persistentVolumeClaim.logStorageClassName }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistentVolumeClaim.logStorageSize }}

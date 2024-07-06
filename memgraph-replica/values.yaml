@@ -1,0 +1,40 @@
+image:
+  repository: memgraph/memgraph
+  tag: "2.18.0"
+  pullPolicy: IfNotPresent
+
+replicaCount: 3
+persistentVolumeClaim:
+  storageClassName: "local-path"
+  storageSize: 10Gi
+  logStorageClassName: "local-path"
+  logStorageSize: 1Gi
+
+memgraphConfig:
+- "--also-log-to-stderr=true"
+- "--data-recovery-on-startup=true"
+
+memgraphUser: ""
+memgraphPassword: ""
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+container:
+  terminationGracePeriodSeconds: 1800
+  probes:
+    liveliness:
+      initialDelaySeconds: 10
+      periodSeconds: 60
+      failureThreshold: 3
+    readiness:
+      initialDelaySeconds: 10
+      periodSeconds: 30
+      failureThreshold: 3
+    startup:
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      failureThreshold: 30
